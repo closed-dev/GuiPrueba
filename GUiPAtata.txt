@@ -1,0 +1,641 @@
+--[[
+    PATATA PROYECT - Key System GUI
+    LocalScript ubicado en: StarterPlayer > StarterPlayerScripts
+    Key correcta: "patata"
+--]]
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+----------------------------------------------------------------
+-- BASE DE KEYS (fácil de extender: permanentes o temporales)
+----------------------------------------------------------------
+local KEYS = {
+    patata = {
+        type = "permanent",
+    },
+    -- ejemplo de key temporal (podés agregar más así):
+    -- prueba = { type = "temporary", expiresAt = os.time() + 3600 },
+}
+
+----------------------------------------------------------------
+-- CONFIG DE COLORES
+----------------------------------------------------------------
+local COLOR_BG        = Color3.fromRGB(18, 18, 24)
+local COLOR_ACCENT_1  = Color3.fromRGB(255, 200, 60)   -- dorado "papa frita"
+local COLOR_ACCENT_2  = Color3.fromRGB(255, 120, 40)   -- naranja
+local COLOR_SUCCESS   = Color3.fromRGB(80, 255, 130)
+local COLOR_ERROR     = Color3.fromRGB(255, 70, 70)
+local COLOR_TEXT      = Color3.fromRGB(240, 240, 245)
+local COLOR_SUBTEXT   = Color3.fromRGB(170, 170, 180)
+
+----------------------------------------------------------------
+-- LIMPIAR GUI PREVIA (por si se recarga el script)
+----------------------------------------------------------------
+local old = playerGui:FindFirstChild("PatataKeySystem")
+if old then old:Destroy() end
+
+----------------------------------------------------------------
+-- SCREEN GUI
+----------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PatataKeySystem"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 999
+screenGui.Parent = playerGui
+
+-- Fondo oscurecido (siempre opaco al valor final, sin animar transparencia de golpe rota)
+local blurFrame = Instance.new("Frame")
+blurFrame.Name = "DimBackground"
+blurFrame.Size = UDim2.fromScale(1, 1)
+blurFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+blurFrame.BackgroundTransparency = 1
+blurFrame.BorderSizePixel = 0
+blurFrame.ZIndex = 1
+blurFrame.Parent = screenGui
+
+local blur = Instance.new("BlurEffect")
+blur.Name = "PatataBlur"
+blur.Size = 0
+blur.Parent = game.Lighting
+
+----------------------------------------------------------------
+-- MAIN FRAME (panel) — SIEMPRE OPACO, solo animamos el tamaño/entrada
+----------------------------------------------------------------
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Position = UDim2.fromScale(0.5, 0.46)
+main.Size = UDim2.fromOffset(380, 280) -- arranca un poco más chico para el "pop"
+main.BackgroundColor3 = COLOR_BG
+main.BackgroundTransparency = 0  -- OPACO DESDE EL PRINCIPIO, sin fade raro
+main.BorderSizePixel = 0
+main.ClipsDescendants = false
+main.ZIndex = 2
+main.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 18)
+mainCorner.Parent = main
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = COLOR_ACCENT_1
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0.2
+mainStroke.Parent = main
+
+-- Gradiente sutil de fondo (no afecta la opacidad base)
+local bgGradient = Instance.new("UIGradient")
+bgGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 24, 18)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(18, 18, 24)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(28, 18, 14)),
+})
+bgGradient.Rotation = 45
+bgGradient.Parent = main
+
+-- "Glow" del panel: un Frame redondeado detrás, sin imágenes (evita ícono roto)
+local glow = Instance.new("Frame")
+glow.Name = "Glow"
+glow.AnchorPoint = Vector2.new(0.5, 0.5)
+glow.Position = UDim2.fromScale(0.5, 0.5)
+glow.Size = UDim2.new(1, 60, 1, 60)
+glow.BackgroundColor3 = COLOR_ACCENT_1
+glow.BackgroundTransparency = 0.85
+glow.BorderSizePixel = 0
+glow.ZIndex = 1
+glow.Parent = screenGui -- va detrás del panel, en el screenGui (ZIndex 1 < main ZIndex 2)
+
+local glowCorner = Instance.new("UICorner")
+glowCorner.CornerRadius = UDim.new(0, 30)
+glowCorner.Parent = glow
+
+glow.Position = main.Position
+
+----------------------------------------------------------------
+-- TITULO "PATATA PROYECT"
+----------------------------------------------------------------
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0, 0, 0, 28)
+title.Size = UDim2.new(1, 0, 0, 50)
+title.Font = Enum.Font.GothamBlack
+title.Text = "PATATA PROYECT"
+title.TextColor3 = COLOR_TEXT
+title.TextSize = 34
+title.TextTransparency = 1
+title.ZIndex = 3
+title.Parent = main
+
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, COLOR_ACCENT_1),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, COLOR_ACCENT_2),
+})
+titleGradient.Parent = title
+
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Color = Color3.fromRGB(0, 0, 0)
+titleStroke.Thickness = 1.5
+titleStroke.Transparency = 0.4
+titleStroke.Parent = title
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Name = "Subtitle"
+subtitle.BackgroundTransparency = 1
+subtitle.Position = UDim2.new(0, 0, 0, 74)
+subtitle.Size = UDim2.new(1, 0, 0, 22)
+subtitle.Font = Enum.Font.Gotham
+subtitle.Text = "ingresá tu key para continuar"
+subtitle.TextColor3 = COLOR_SUBTEXT
+subtitle.TextSize = 14
+subtitle.TextTransparency = 1
+subtitle.ZIndex = 3
+subtitle.Parent = main
+
+----------------------------------------------------------------
+-- KEY INPUT BOX — panel siempre opaco
+----------------------------------------------------------------
+local inputHolder = Instance.new("Frame")
+inputHolder.Name = "InputHolder"
+inputHolder.AnchorPoint = Vector2.new(0.5, 0)
+inputHolder.Position = UDim2.new(0.5, 0, 0, 118)
+inputHolder.Size = UDim2.new(1, -60, 0, 48)
+inputHolder.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+inputHolder.BackgroundTransparency = 0
+inputHolder.BorderSizePixel = 0
+inputHolder.ZIndex = 3
+inputHolder.Parent = main
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 12)
+inputCorner.Parent = inputHolder
+
+local inputStroke = Instance.new("UIStroke")
+inputStroke.Name = "Stroke"
+inputStroke.Color = Color3.fromRGB(65, 65, 75)
+inputStroke.Thickness = 1.5
+inputStroke.Parent = inputHolder
+
+local keyBox = Instance.new("TextBox")
+keyBox.Name = "KeyBox"
+keyBox.BackgroundTransparency = 1
+keyBox.Position = UDim2.new(0, 16, 0, 0)
+keyBox.Size = UDim2.new(1, -32, 1, 0)
+keyBox.Font = Enum.Font.GothamMedium
+keyBox.PlaceholderText = "escribí tu key aquí..."
+keyBox.PlaceholderColor3 = Color3.fromRGB(115, 115, 125)
+keyBox.Text = ""
+keyBox.TextColor3 = COLOR_TEXT
+keyBox.TextSize = 16
+keyBox.TextXAlignment = Enum.TextXAlignment.Left
+keyBox.ClearTextOnFocus = false
+keyBox.ZIndex = 4
+keyBox.Parent = inputHolder
+
+keyBox.Focused:Connect(function()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2), {
+        Color = COLOR_ACCENT_1,
+        Thickness = 2,
+    }):Play()
+end)
+keyBox.FocusLost:Connect(function()
+    TweenService:Create(inputStroke, TweenInfo.new(0.2), {
+        Color = Color3.fromRGB(65, 65, 75),
+        Thickness = 1.5,
+    }):Play()
+end)
+
+----------------------------------------------------------------
+-- BOTON VERIFICAR
+----------------------------------------------------------------
+local verifyBtn = Instance.new("TextButton")
+verifyBtn.Name = "VerifyButton"
+verifyBtn.AnchorPoint = Vector2.new(0.5, 0)
+verifyBtn.Position = UDim2.new(0.5, 0, 0, 180)
+verifyBtn.Size = UDim2.new(1, -60, 0, 46)
+verifyBtn.AutoButtonColor = false
+verifyBtn.BackgroundColor3 = COLOR_ACCENT_1
+verifyBtn.BackgroundTransparency = 0
+verifyBtn.BorderSizePixel = 0
+verifyBtn.Font = Enum.Font.GothamBold
+verifyBtn.Text = "VERIFICAR"
+verifyBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+verifyBtn.TextSize = 16
+verifyBtn.ZIndex = 3
+verifyBtn.Parent = main
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 12)
+btnCorner.Parent = verifyBtn
+
+local btnGradient = Instance.new("UIGradient")
+btnGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, COLOR_ACCENT_1),
+    ColorSequenceKeypoint.new(1, COLOR_ACCENT_2),
+})
+btnGradient.Rotation = 0
+btnGradient.Parent = verifyBtn
+
+-- Indicador de carga: 3 puntitos que pulsan (sin imágenes, no puede romperse)
+local dotsHolder = Instance.new("Frame")
+dotsHolder.Name = "LoadingDots"
+dotsHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+dotsHolder.Position = UDim2.fromScale(0.5, 0.5)
+dotsHolder.Size = UDim2.fromOffset(46, 10)
+dotsHolder.BackgroundTransparency = 1
+dotsHolder.Visible = false
+dotsHolder.ZIndex = 4
+dotsHolder.Parent = verifyBtn
+
+local dotsLayout = Instance.new("UIListLayout")
+dotsLayout.FillDirection = Enum.FillDirection.Horizontal
+dotsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+dotsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+dotsLayout.Padding = UDim.new(0, 6)
+dotsLayout.Parent = dotsHolder
+
+local dots = {}
+for i = 1, 3 do
+    local dot = Instance.new("Frame")
+    dot.Name = "Dot" .. i
+    dot.Size = UDim2.fromOffset(8, 8)
+    dot.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    dot.BorderSizePixel = 0
+    dot.ZIndex = 4
+    dot.Parent = dotsHolder
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(1, 0)
+    c.Parent = dot
+    dots[i] = dot
+end
+
+local dotsLoopRunning = false
+local function startDotsLoop()
+    dotsLoopRunning = true
+    task.spawn(function()
+        while dotsLoopRunning do
+            for i = 1, 3 do
+                if not dotsLoopRunning then break end
+                TweenService:Create(dots[i], TweenInfo.new(0.25), {Size = UDim2.fromOffset(11, 11)}):Play()
+                task.wait(0.12)
+                TweenService:Create(dots[i], TweenInfo.new(0.25), {Size = UDim2.fromOffset(8, 8)}):Play()
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+local function stopDotsLoop()
+    dotsLoopRunning = false
+    for i = 1, 3 do
+        dots[i].Size = UDim2.fromOffset(8, 8)
+    end
+end
+
+----------------------------------------------------------------
+-- LABEL DE FEEDBACK (correcto / incorrecto)
+----------------------------------------------------------------
+local feedback = Instance.new("TextLabel")
+feedback.Name = "Feedback"
+feedback.AnchorPoint = Vector2.new(0.5, 0)
+feedback.Position = UDim2.new(0.5, 0, 0, 234)
+feedback.Size = UDim2.new(1, -40, 0, 18)
+feedback.BackgroundTransparency = 1
+feedback.Font = Enum.Font.GothamMedium
+feedback.Text = ""
+feedback.TextColor3 = COLOR_ERROR
+feedback.TextSize = 13
+feedback.TextTransparency = 1
+feedback.ZIndex = 3
+feedback.Parent = main
+
+----------------------------------------------------------------
+-- ESTADO DE LA KEY (PERMANENT / TEMPORARY + tiempo restante)
+----------------------------------------------------------------
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "KeyStatus"
+statusLabel.AnchorPoint = Vector2.new(0.5, 0)
+statusLabel.Position = UDim2.new(0.5, 0, 0, 254)
+statusLabel.Size = UDim2.new(1, -40, 0, 18)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.Text = ""
+statusLabel.TextColor3 = COLOR_ACCENT_1
+statusLabel.TextSize = 13
+statusLabel.TextTransparency = 1
+statusLabel.ZIndex = 3
+statusLabel.Parent = main
+
+local statusLoopRunning = false
+local function stopStatusLoop()
+    statusLoopRunning = false
+end
+
+local function formatDuration(seconds)
+    seconds = math.max(0, math.floor(seconds))
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = seconds % 60
+    return string.format("%dh %dm %ds", h, m, s)
+end
+
+local function hideStatus()
+    stopStatusLoop()
+    statusLabel.Text = ""
+    statusLabel.TextTransparency = 1
+end
+
+local function showKeyStatus(keyData)
+    stopStatusLoop()
+    statusLabel.TextTransparency = 1
+
+    if keyData.type == "permanent" then
+        statusLabel.Text = "PERMANENT  •  EXPIRES: NEVER"
+    else
+        statusLoopRunning = true
+        task.spawn(function()
+            while statusLoopRunning do
+                local remaining = keyData.expiresAt - os.time()
+                if remaining <= 0 then
+                    statusLabel.Text = "TEMPORARY  •  EXPIRED"
+                    statusLoopRunning = false
+                    break
+                end
+                statusLabel.Text = "TEMPORARY  •  " .. formatDuration(remaining)
+                task.wait(1)
+            end
+        end)
+    end
+
+    TweenService:Create(statusLabel, TweenInfo.new(0.25), {TextTransparency = 0}):Play()
+end
+
+----------------------------------------------------------------
+-- INFO DE SESION (usuario / fecha / hora en vivo)
+----------------------------------------------------------------
+local sessionDivider = Instance.new("Frame")
+sessionDivider.Name = "SessionDivider"
+sessionDivider.AnchorPoint = Vector2.new(0.5, 0)
+sessionDivider.Position = UDim2.new(0.5, 0, 0, 282)
+sessionDivider.Size = UDim2.new(1, -60, 0, 1)
+sessionDivider.BackgroundColor3 = Color3.fromRGB(55, 55, 63)
+sessionDivider.BackgroundTransparency = 1
+sessionDivider.BorderSizePixel = 0
+sessionDivider.ZIndex = 3
+sessionDivider.Parent = main
+
+local sessionRow = Instance.new("TextLabel")
+sessionRow.Name = "SessionInfo"
+sessionRow.AnchorPoint = Vector2.new(0.5, 0)
+sessionRow.Position = UDim2.new(0.5, 0, 0, 292)
+sessionRow.Size = UDim2.new(1, -40, 0, 18)
+sessionRow.BackgroundTransparency = 1
+sessionRow.Font = Enum.Font.GothamMedium
+sessionRow.Text = ""
+sessionRow.TextColor3 = Color3.fromRGB(255, 255, 255)
+sessionRow.TextSize = 12
+sessionRow.TextTransparency = 1
+sessionRow.ZIndex = 3
+sessionRow.Parent = main
+
+-- degradé animado sobre el texto de sesión (usuario / fecha / hora)
+local sessionGradient = Instance.new("UIGradient")
+sessionGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 200, 60)),   -- dorado
+    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 120, 180)), -- rosa
+    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(120, 170, 255)), -- celeste
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 200, 60)),   -- vuelve al dorado
+})
+sessionGradient.Parent = sessionRow
+
+task.spawn(function()
+    while screenGui.Parent do
+        sessionGradient.Offset = Vector2.new(-1, 0)
+        local tween = TweenService:Create(
+            sessionGradient,
+            TweenInfo.new(2.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            {Offset = Vector2.new(1, 0)}
+        )
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end)
+
+local function sessionText()
+    return string.format("%s   •   %s   •   %s", player.Name, os.date("%d/%m/%Y"), os.date("%H:%M:%S"))
+end
+
+sessionRow.Text = sessionText()
+task.spawn(function()
+    while screenGui.Parent do
+        sessionRow.Text = sessionText()
+        task.wait(1)
+    end
+end)
+
+----------------------------------------------------------------
+-- ANIMACION DE ENTRADA (pop-in de tamaño + fade de texto, panel ya opaco)
+----------------------------------------------------------------
+local finalSize = UDim2.fromOffset(420, 330)
+main.Size = UDim2.fromOffset(340, 250)
+mainStroke.Transparency = 1
+glow.BackgroundTransparency = 1
+
+local function updateGlowToMain()
+    glow.Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset + 60, main.Size.Y.Scale, main.Size.Y.Offset + 60)
+end
+updateGlowToMain()
+
+local function fadeIn()
+    TweenService:Create(blurFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0.15}):Play()
+    TweenService:Create(blur, TweenInfo.new(0.3), {Size = 24}):Play()
+
+    local sizeTween = TweenService:Create(main, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = finalSize,
+    })
+    sizeTween:Play()
+
+    local conn
+    conn = sizeTween.Completed:Connect(function()
+        updateGlowToMain()
+        conn:Disconnect()
+    end)
+    task.spawn(function()
+        local t = 0
+        while t < 0.45 do
+            t += task.wait()
+            updateGlowToMain()
+        end
+        updateGlowToMain()
+    end)
+
+    TweenService:Create(mainStroke, TweenInfo.new(0.4), {Transparency = 0.2}):Play()
+    TweenService:Create(glow, TweenInfo.new(0.5), {BackgroundTransparency = 0.85}):Play()
+
+    task.delay(0.15, function()
+        TweenService:Create(title, TweenInfo.new(0.35), {TextTransparency = 0}):Play()
+    end)
+    task.delay(0.22, function()
+        TweenService:Create(subtitle, TweenInfo.new(0.35), {TextTransparency = 0}):Play()
+    end)
+    task.delay(0.28, function()
+        TweenService:Create(inputStroke, TweenInfo.new(0.35), {Transparency = 0}):Play()
+        TweenService:Create(keyBox, TweenInfo.new(0.35), {TextTransparency = 0}):Play()
+    end)
+    task.delay(0.4, function()
+        TweenService:Create(sessionDivider, TweenInfo.new(0.35), {BackgroundTransparency = 0.4}):Play()
+        TweenService:Create(sessionRow, TweenInfo.new(0.35), {TextTransparency = 0}):Play()
+    end)
+end
+
+fadeIn()
+
+-- Rotación lenta del gradiente del botón (efecto "vivo")
+task.spawn(function()
+    while screenGui.Parent do
+        for i = 0, 360, 4 do
+            if not screenGui.Parent then break end
+            btnGradient.Rotation = i
+            task.wait(0.03)
+        end
+    end
+end)
+
+----------------------------------------------------------------
+-- FUNCIONES DE FEEDBACK
+----------------------------------------------------------------
+local function shakeInput()
+    local basePos = UDim2.new(0.5, 0, 0, 118)
+    local seq = {6, -6, 4, -4, 2, -2, 0}
+    task.spawn(function()
+        for _, offset in ipairs(seq) do
+            inputHolder.Position = UDim2.new(0.5, offset, 0, 118)
+            task.wait(0.035)
+        end
+        inputHolder.Position = basePos
+    end)
+end
+
+local function showFeedback(text, color)
+    feedback.Text = text
+    feedback.TextColor3 = color
+    feedback.TextTransparency = 1
+    TweenService:Create(feedback, TweenInfo.new(0.25), {TextTransparency = 0}):Play()
+end
+
+local function setLoading(isLoading)
+    if isLoading then
+        verifyBtn.Text = ""
+        dotsHolder.Visible = true
+        startDotsLoop()
+    else
+        stopDotsLoop()
+        dotsHolder.Visible = false
+        verifyBtn.Text = "VERIFICAR"
+    end
+end
+
+local function closeGui(success)
+    stopStatusLoop()
+
+    if success then
+        TweenService:Create(mainStroke, TweenInfo.new(0.25), {Color = COLOR_SUCCESS}):Play()
+        TweenService:Create(main, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.fromOffset(460, 350),
+            BackgroundTransparency = 1,
+        }):Play()
+    else
+        TweenService:Create(main, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    end
+
+    TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(subtitle, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(inputHolder, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(inputStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+    TweenService:Create(keyBox, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(verifyBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(glow, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(feedback, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(statusLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(sessionDivider, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(sessionRow, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(blurFrame, TweenInfo.new(0.35), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(blur, TweenInfo.new(0.35), {Size = 0}):Play()
+
+    task.delay(0.4, function()
+        blur:Destroy()
+        screenGui:Destroy()
+    end)
+end
+
+----------------------------------------------------------------
+-- LOGICA DE VERIFICACION
+----------------------------------------------------------------
+local verifying = false
+
+local function verifyKey()
+    if verifying then return end
+    local inputText = keyBox.Text:gsub("%s+", ""):lower()
+
+    hideStatus()
+
+    if inputText == "" then
+        showFeedback("escribí una key primero", COLOR_ERROR)
+        shakeInput()
+        return
+    end
+
+    verifying = true
+    setLoading(true)
+    feedback.Text = ""
+
+    task.wait(0.9)
+
+    local keyData = KEYS[inputText]
+
+    if keyData then
+        setLoading(false)
+        showFeedback("¡key correcta! bienvenido", COLOR_SUCCESS)
+        showKeyStatus(keyData)
+        TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = COLOR_SUCCESS}):Play()
+        task.wait(1.4)
+        closeGui(true)
+    else
+        verifying = false
+        setLoading(false)
+        showFeedback("key incorrecta, intentá de nuevo", COLOR_ERROR)
+        TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = COLOR_ERROR}):Play()
+        shakeInput()
+        task.wait(1.2)
+        TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(65, 65, 75)}):Play()
+    end
+end
+
+----------------------------------------------------------------
+-- EVENTOS DEL BOTON (hover + click)
+----------------------------------------------------------------
+verifyBtn.MouseEnter:Connect(function()
+    TweenService:Create(verifyBtn, TweenInfo.new(0.15), {Size = UDim2.new(1, -56, 0, 46)}):Play()
+end)
+verifyBtn.MouseLeave:Connect(function()
+    TweenService:Create(verifyBtn, TweenInfo.new(0.15), {Size = UDim2.new(1, -60, 0, 46)}):Play()
+end)
+verifyBtn.MouseButton1Down:Connect(function()
+    TweenService:Create(verifyBtn, TweenInfo.new(0.08), {Size = UDim2.new(1, -66, 0, 44)}):Play()
+end)
+verifyBtn.MouseButton1Up:Connect(function()
+    TweenService:Create(verifyBtn, TweenInfo.new(0.08), {Size = UDim2.new(1, -56, 0, 46)}):Play()
+end)
+verifyBtn.MouseButton1Click:Connect(verifyKey)
+
+keyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        verifyKey()
+    end
+end)
