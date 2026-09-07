@@ -8,23 +8,7 @@ local triggerbotEnabled = false
 local lastShotTime = 0
 local SHOT_COOLDOWN = 0.01
 
--- Funciones de click y tecla para diferentes ejecutores
-local function pressKey2()
-    if keypress then
-        keypress(50)
-        task.wait(0.02)
-        keyrelease(50)
-    elseif syn and syn.keypress then
-        syn.keypress(50)
-        task.wait(0.02)
-        syn.keyrelease(50)
-    elseif VirtualInputManager then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Two, false, game)
-        task.wait(0.02)
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Two, false, game)
-    end
-end
-
+-- Solo función de clic
 local function clickMouse()
     if mouse1click then
         mouse1click()
@@ -35,14 +19,6 @@ local function clickMouse()
         task.wait(0.01)
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
     end
-end
-
-local function executeSequence()
-    pressKey2()
-    task.wait(0.03)
-    clickMouse()
-    task.wait(0.03)
-    pressKey2()
 end
 
 UserInputService.InputBegan:Connect(function(input)
@@ -65,8 +41,7 @@ RunService.RenderStepped:Connect(function()
         if humanoid and humanoid.Health > 0 then
             local now = tick()
             if now - lastShotTime >= SHOT_COOLDOWN then
-                print("Disparando a: " .. tostring(character.Name))
-                executeSequence()
+                clickMouse() -- Solo clic, sin presionar 2
                 lastShotTime = now
             end
         end
