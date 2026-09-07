@@ -6,25 +6,66 @@ local RunService = game:GetService("RunService")
 
 local triggerbotEnabled = false
 local lastShotTime = 0
-local SHOT_COOLDOWN = 0.01
+local SHOT_COOLDOWN = 0.05
 
--- Solo función de clic
+-- Función de clic con múltiples métodos
 local function clickMouse()
+    -- Método 1: mouse1click (más común)
     if mouse1click then
         mouse1click()
-    elseif syn and syn.mouse1click then
+        return
+    end
+    
+    -- Método 2: Synapse X
+    if syn and syn.mouse1click then
         syn.mouse1click()
-    elseif VirtualInputManager then
+        return
+    end
+    
+    -- Método 3: VirtualInputManager
+    if VirtualInputManager then
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        task.wait(0.01)
+        task.wait(0.05)
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        return
+    end
+    
+    -- Método 4: mouse_event (algunos ejecutores)
+    if mouse_event then
+        mouse_event(0x02, 0, 0, 0, 0)
+        task.wait(0.05)
+        mouse_event(0x04, 0, 0, 0, 0)
+        return
+    end
+    
+    -- Método 5: Simular con InputService (alternativa)
+    local inputService = game:GetService("UserInputService")
+    if inputService then
+        inputService:SendMouseButtonEvent(Enum.UserInputType.MouseButton1, 0, 0, true)
+        task.wait(0.05)
+        inputService:SendMouseButtonEvent(Enum.UserInputType.MouseButton1, 0, 0, false)
+        return
+    end
+end
+
+-- Función para asegurar que el mouse está en la posición correcta
+local function ensureMousePosition()
+    local target = Mouse.Target
+    if target then
+        local position = target.Position
+        if position then
+            Mouse.Move(position)
+        end
     end
 end
 
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.P then
         triggerbotEnabled = not triggerbotEnabled
-        print("Triggerbot: " .. tostring(triggerbotEnabled))
+        print("Triggerbot " .. (triggerbotEnabled and "ACTIVADO" or "DESACTIVADO"))
+        if triggerbotEnabled then
+            print("¡Apunta a un enemigo para disparar!")
+        end
         lastShotTime = 0
     end
 end)
@@ -41,11 +82,15 @@ RunService.RenderStepped:Connect(function()
         if humanoid and humanoid.Health > 0 then
             local now = tick()
             if now - lastShotTime >= SHOT_COOLDOWN then
-                clickMouse() -- Solo clic, sin presionar 2
+                -- Asegurar que el mouse está sobre el objetivo
+                ensureMousePosition()
+                -- Disparar
+                clickMouse()
                 lastShotTime = now
             end
         end
     end
 end)
 
-print("Triggerbot cargado. Presiona P para activar.")
+print("Triggerbot cargado. Presiona P para activar/desactivar.")
+print("Si no funciona, prueba con otro ejecutor o verifica los permisos.")
